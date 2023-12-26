@@ -814,8 +814,8 @@ impl<T: ArrayValue> Array<T> {
         // Determine the shape of the windows array
         let mut new_shape = Shape::with_capacity(self.shape.len() + size_spec.len());
         new_shape.extend(self.shape.iter().zip(&size_spec).map(|(a, b)| a + 1 - *b));
-        new_shape.extend_from_slice(&size_spec);
-        new_shape.extend_from_slice(&self.shape[size_spec.len()..]);
+        new_shape.extend(size_spec.iter().copied());
+        new_shape.extend_from_shape(&self.shape, size_spec.len()..);
         // Check if the window size is too large
         for (size, sh) in size_spec.iter().zip(&self.shape) {
             if *size > *sh {

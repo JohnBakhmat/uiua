@@ -197,7 +197,7 @@ fn each1(f: Function, xs: Value, env: &mut Uiua) -> UiuaResult {
             if is_empty {
                 eached.pop_row();
             }
-            new_shape.extend_from_slice(&eached.shape()[1..]);
+            new_shape.extend_from_shape(eached.shape(), 1..);
             *eached.shape_mut() = new_shape;
             env.push(eached);
         }
@@ -287,7 +287,7 @@ fn each2(f: Function, xs: Value, ys: Value, env: &mut Uiua) -> UiuaResult {
                     *r -= 1;
                 }
             }
-            new_shape.extend_from_slice(&eached.shape()[1..]);
+            new_shape.extend_from_shape(eached.shape(), 1..);
             *eached.shape_mut() = new_shape;
             env.push(eached);
         }
@@ -339,7 +339,7 @@ fn eachn(f: Function, args: Vec<Value>, env: &mut Uiua) -> UiuaResult {
         if is_empty {
             eached.pop_row();
         }
-        new_shape.extend_from_slice(&eached.shape()[1..]);
+        new_shape.extend_from_shape(eached.shape(), 1..);
         *eached.shape_mut() = new_shape;
         env.push(eached);
     }

@@ -1,7 +1,7 @@
 use std::{
     fmt,
     hash::Hash,
-    ops::{Deref, DerefMut, RangeBounds},
+    ops::{Deref, DerefMut, Index, RangeBounds},
 };
 
 use serde::*;
@@ -76,9 +76,22 @@ impl Shape {
     pub fn remove(&mut self, index: usize) -> impl Into<Dimension> {
         self.sizes.remove(index)
     }
-    /// Extend the shape with the given dimensions
-    pub fn extend_from_slice(&mut self, dims: &[usize]) {
-        self.sizes.extend_from_slice(dims);
+    // /// Extend the shape with the given dimensions
+    // pub fn extend_from_slice(&mut self, dims: &[usize]) {
+    //     self.sizes.extend_from_slice(dims);
+    // }
+    /// Extend the shape with the given dimensions and markers
+    pub fn extend_from_shape<R>(&mut self, shape: &Shape, range: R)
+    where
+        [usize]: Index<R, Output = [usize]>,
+        [Marker]: Index<R, Output = [Marker]>,
+        R: Clone,
+    {
+        self.sizes
+            .extend_from_slice(&shape.sizes[..][range.clone()]);
+        if !shape.markers.is_empty() {
+            self.markers.extend_from_slice(&shape.markers[..][range]);
+        }
     }
     /// Split the shape at the given index
     pub fn split_off(&mut self, at: usize) -> Self {
@@ -98,6 +111,16 @@ impl Shape {
         } else {
             &self.markers
         }
+    }
+    /// Get an iterator over the dimensions
+    pub fn dims(&self) -> impl Iterator<Item = Dimension> + '_ {
+        self.sizes
+            .iter()
+            .enumerate()
+            .map(move |(i, &size)| Dimension {
+                size,
+                marker: self.markers.get(i).copied().unwrap_or(EMPTY_MARKER),
+            })
     }
 }
 

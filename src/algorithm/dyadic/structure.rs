@@ -125,7 +125,7 @@ impl<T: ArrayValue> Array<T> {
             }
         }
         let mut new_shape = Shape::from(&index_shape[0..index_shape.len() - 1]);
-        new_shape.extend_from_slice(&self.shape[*index_shape.last().unwrap()..]);
+        new_shape.extend_from_shape(&self.shape, *index_shape.last().unwrap()..);
         Ok(Array::new(new_shape, new_data))
     }
     fn pick_single(&self, index: &[isize], env: &Uiua) -> UiuaResult<Self> {

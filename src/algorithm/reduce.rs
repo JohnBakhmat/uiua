@@ -22,7 +22,7 @@ pub fn reduce(env: &mut Uiua) -> UiuaResult {
             let shape = xs.shape();
             let mut new_shape = Shape::with_capacity(xs.rank() - 1);
             new_shape.push(shape[0] * shape[1]);
-            new_shape.extend_from_slice(&shape[2..]);
+            new_shape.extend_from_shape(shape, 2..);
             *xs.shape_mut() = new_shape;
             env.push(xs);
         }

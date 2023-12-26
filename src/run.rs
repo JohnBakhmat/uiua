@@ -1328,7 +1328,7 @@ code:
             }
             let mut val = Value::from_row_values(rows, self)?;
             let mut shape = ids.shape;
-            shape.extend_from_slice(&val.shape()[1..]);
+            shape.extend_from_shape(val.shape(), 1..);
             *val.shape_mut() = shape;
             self.push(val);
         }
@@ -1358,7 +1358,7 @@ code:
         }
         let mut val = Value::from_row_values(values, self)?;
         let mut shape = ids.shape;
-        shape.extend_from_slice(&val.shape()[1..]);
+        shape.extend_from_shape(val.shape(), 1..);
         *val.shape_mut() = shape;
         self.push(val);
         Ok(())

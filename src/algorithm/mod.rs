@@ -380,7 +380,7 @@ pub fn switch(count: usize, sig: Signature, env: &mut Uiua) -> UiuaResult {
         for output in outputs.into_iter().rev() {
             let mut new_value = Value::from_row_values(output, env)?;
             let mut new_shape = selector.shape.clone();
-            new_shape.extend_from_slice(&new_value.shape()[1..]);
+            new_shape.extend_from_shape(new_value.shape(), 1..);
             *new_value.shape_mut() = new_shape;
             env.push(new_value);
         }

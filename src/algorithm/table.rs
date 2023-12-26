@@ -174,7 +174,7 @@ fn fast_table<A: ArrayValue, B: ArrayValue, C: ArrayValue>(
         }
     }
     let mut new_shape = a.shape;
-    new_shape.extend_from_slice(&b.shape);
+    new_shape.extend_from_shape(&b.shape, ..);
     Array::new(new_shape, new_data)
 }
 
@@ -196,7 +196,7 @@ fn fast_table_join_or_couple<T: ArrayValue>(a: Array<T>, b: Array<T>, flipped: b
         }
     }
     let mut new_shape = a.shape;
-    new_shape.extend_from_slice(&b.shape);
+    new_shape.extend_from_shape(&b.shape, ..);
     new_shape.push(2);
     Array::new(new_shape, new_data)
 }
@@ -210,7 +210,7 @@ fn generic_table(f: Function, xs: Value, ys: Value, env: &mut Uiua) -> UiuaResul
         )));
     }
     let mut new_shape = xs.shape().clone();
-    new_shape.extend_from_slice(ys.shape());
+    new_shape.extend_from_shape(ys.shape(), ..);
     let outputs = sig.outputs;
     let mut items = multi_output(
         outputs,
@@ -230,7 +230,7 @@ fn generic_table(f: Function, xs: Value, ys: Value, env: &mut Uiua) -> UiuaResul
     for items in items.into_iter().rev() {
         let mut tabled = items.finish();
         let mut new_shape = new_shape.clone();
-        new_shape.extend_from_slice(&tabled.shape()[1..]);
+        new_shape.extend_from_shape(tabled.shape(), 1..);
         *tabled.shape_mut() = new_shape;
         tabled.validate_shape();
         env.push(tabled);
@@ -269,7 +269,7 @@ pub fn cross(env: &mut Uiua) -> UiuaResult {
             for items in items.into_iter().rev() {
                 let mut crossed = items.finish();
                 let mut new_shape = new_shape.clone();
-                new_shape.extend_from_slice(&crossed.shape()[1..]);
+                new_shape.extend_from_shape(crossed.shape(), 1..);
                 *crossed.shape_mut() = new_shape;
                 crossed.validate_shape();
                 env.push(crossed);
@@ -321,7 +321,7 @@ pub fn cross(env: &mut Uiua) -> UiuaResult {
             for items in items.into_iter().rev() {
                 let mut crossed = items.finish();
                 let mut new_shape = new_shape.clone();
-                new_shape.extend_from_slice(&crossed.shape()[1..]);
+                new_shape.extend_from_shape(crossed.shape(), 1..);
                 *crossed.shape_mut() = new_shape;
                 crossed.validate_shape();
                 env.push(crossed);
