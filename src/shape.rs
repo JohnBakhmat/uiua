@@ -62,24 +62,42 @@ impl Shape {
     pub fn push(&mut self, dim: impl Into<Dimension>) {
         let dim = dim.into();
         self.sizes.push(dim.size);
+        if dim.marker != EMPTY_MARKER {
+            self.markers.push(dim.marker);
+        } else if !self.markers.is_empty() {
+            self.markers.push(EMPTY_MARKER);
+        }
     }
     /// Remove the last dimension
-    pub fn pop(&mut self) -> Option<usize> {
-        self.sizes.pop()
+    pub fn pop(&mut self) -> Option<Dimension> {
+        let size = self.sizes.pop()?;
+        let marker = if self.markers.is_empty() {
+            EMPTY_MARKER
+        } else {
+            self.markers.pop()?
+        };
+        Some(Dimension { size, marker })
     }
     /// Insert a dimension at the given index
     pub fn insert(&mut self, index: usize, dim: impl Into<Dimension>) {
         let dim = dim.into();
         self.sizes.insert(index, dim.size);
+        if dim.marker != EMPTY_MARKER {
+            self.markers.insert(index, dim.marker);
+        } else if !self.markers.is_empty() {
+            self.markers.insert(index, EMPTY_MARKER);
+        }
     }
     /// Remove the dimension at the given index
-    pub fn remove(&mut self, index: usize) -> impl Into<Dimension> {
-        self.sizes.remove(index)
+    pub fn remove(&mut self, index: usize) -> Dimension {
+        let size = self.sizes.remove(index);
+        let marker = if self.markers.is_empty() {
+            EMPTY_MARKER
+        } else {
+            self.markers.remove(index)
+        };
+        Dimension { size, marker }
     }
-    // /// Extend the shape with the given dimensions
-    // pub fn extend_from_slice(&mut self, dims: &[usize]) {
-    //     self.sizes.extend_from_slice(dims);
-    // }
     /// Extend the shape with the given dimensions and markers
     pub fn extend_from_shape<R>(&mut self, shape: &Shape, range: R)
     where

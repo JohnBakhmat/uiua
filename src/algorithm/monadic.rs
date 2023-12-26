@@ -753,7 +753,7 @@ impl Array<u8> {
             return Ok(Array::from(bools[0] as u8 as f64));
         }
         let mut shape = self.shape.clone();
-        let bit_string_len = shape.pop().unwrap();
+        let bit_string_len = shape.pop().unwrap().size;
         let mut new_data = EcoVec::from_elem(0.0, self.data.len() / bit_string_len);
         let new_data_slice = new_data.make_mut();
         // Big endian
