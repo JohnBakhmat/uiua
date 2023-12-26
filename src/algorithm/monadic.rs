@@ -455,9 +455,9 @@ impl<T: ArrayValue> Array<T> {
         let forward = amnt.is_positive();
         if self.shape[depth..].iter().any(|&d| d == 0) {
             if forward {
-                self.shape[depth..].rotate_left(count);
+                self.shape.rotate_left_at(depth.., count);
             } else {
-                self.shape[depth..].rotate_right(count);
+                self.shape.rotate_right_at(depth.., count);
             }
             return;
         }
@@ -483,9 +483,9 @@ impl<T: ArrayValue> Array<T> {
             data.clone_from_slice(&temp);
         }
         if forward {
-            self.shape[depth..].rotate_left(count);
+            self.shape.rotate_left_at(depth.., count);
         } else {
-            self.shape[depth..].rotate_right(count);
+            self.shape.rotate_right_at(depth.., count);
         }
     }
 }
@@ -665,7 +665,7 @@ impl<T: ArrayValue> Array<T> {
             }
         }
         self.data = deduped;
-        self.shape[0] = new_len;
+        self.shape.set_length(new_len);
     }
 }
 
@@ -929,8 +929,8 @@ impl Value {
                     init.push(0);
                 }
                 let shape = counts.keys().fold(init, |mut acc, row| {
-                    for (a, r) in acc.iter_mut().zip(row.iter()) {
-                        *a = (*a).max(*r + 1);
+                    for i in 0..acc.len() {
+                        acc.set_size(i, acc[i].max(row[i] + 1));
                     }
                     acc
                 });

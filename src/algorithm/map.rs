@@ -272,7 +272,7 @@ fn with_pair_mut<T>(val: &mut Value, env: &Uiua, f: impl FnOnce(PairMut) -> T) -
                 .take(2)
                 .collect();
             arr.shape = val.shape().clone();
-            arr.shape[0] = 2;
+            arr.shape.set_length(2);
             let data = arr.data.as_mut_slice();
             let (keys, values) = data.split_at_mut(1);
             let res = f(PairMut {
@@ -381,9 +381,9 @@ impl<'a> PairMut<'a> {
                 let key_row_len = keys.row_len();
                 let value_row_len = values.row_len();
                 let mut keys_shape = keys.shape.clone();
-                keys_shape[0] = new_capacity;
+                keys_shape.set_length(new_capacity);
                 let mut values_shape = values.shape.clone();
-                values_shape[0] = new_capacity;
+                values_shape.set_length(new_capacity);
                 let old_keys = take(keys).into_rows();
                 let old_values = take(values).into_rows();
                 *keys = Array::new(

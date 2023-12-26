@@ -376,7 +376,7 @@ impl<T: ArrayValue> Array<T> {
                     }
                     Ok(())
                 })?;
-                if let Some(s) = self.shape.get_mut(0) {
+                if let Some(s) = self.shape.length_mut() {
                     *s = if filled {
                         abs_taking
                     } else {
@@ -466,7 +466,7 @@ impl<T: ArrayValue> Array<T> {
                     }
                     arr
                 };
-                arr.shape[0] = abs_taking;
+                arr.shape.set_length(abs_taking);
                 arr.validate_shape();
                 arr
             }
@@ -496,7 +496,8 @@ impl<T: ArrayValue> Array<T> {
                 if self.shape.is_empty() {
                     self.shape.push(1);
                 }
-                self.shape[0] = self.shape[0].saturating_sub(abs_dropping);
+                self.shape
+                    .set_length(self.shape[0].saturating_sub(abs_dropping));
                 self.validate_shape();
                 self
             }
@@ -758,7 +759,7 @@ impl<T: ArrayValue> Array<T> {
             selected.extend_from_slice(&self.data[start..end]);
         }
         let mut shape = self.shape.clone();
-        if let Some(s) = shape.get_mut(0) {
+        if let Some(s) = shape.length_mut() {
             *s = indices.len();
         } else {
             shape.push(indices.len());

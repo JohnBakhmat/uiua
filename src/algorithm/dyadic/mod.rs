@@ -480,7 +480,7 @@ impl<T: ArrayValue> Array<T> {
         // Keep nothing
         if count == 0 {
             self.data = CowSlice::new();
-            self.shape[0] = 0;
+            self.shape.set_length(0);
             return self;
         }
         // Keep 1 is a no-op
@@ -488,7 +488,7 @@ impl<T: ArrayValue> Array<T> {
             return self;
         }
         // Keep ≥2 is a repeat
-        self.shape[0] *= count;
+        self.shape.set_length(self.shape.length() * count);
         let old_data = self.data.clone();
         self.data.modify(|data| {
             data.reserve(data.len() * count);
@@ -580,7 +580,7 @@ impl<T: ArrayValue> Array<T> {
                     }
                 }
                 self.data = new_data;
-                self.shape[0] = true_count;
+                self.shape.set_length(true_count);
             } else {
                 let mut new_data = CowSlice::new();
                 let mut new_len = 0;
@@ -595,7 +595,7 @@ impl<T: ArrayValue> Array<T> {
                     new_len = amount.iter().sum();
                 }
                 self.data = new_data;
-                self.shape[0] = new_len;
+                self.shape.set_length(new_len);
             }
         }
         self.validate_shape();
@@ -910,7 +910,7 @@ impl<T: ArrayValue> Array<T> {
             match env.fill() {
                 Ok(fill) => {
                     let mut target_shape = searched.shape.clone();
-                    target_shape[0] = searched_for.row_count();
+                    target_shape.set_length(searched_for.row_count());
                     local_searched = searched.clone();
                     local_searched.fill_to_shape(&target_shape, fill);
                     searched = &local_searched;

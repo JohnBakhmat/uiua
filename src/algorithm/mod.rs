@@ -45,10 +45,10 @@ fn max_shape(a: &[usize], b: &[usize]) -> Shape {
     for i in 0..new_shape.len() {
         let j = new_shape.len() - i - 1;
         if a.len() > i {
-            new_shape[j] = a[a.len() - i - 1];
+            new_shape.set_size(j, a[a.len() - i - 1]);
         }
         if b.len() > i {
-            new_shape[j] = new_shape[j].max(b[b.len() - i - 1]);
+            new_shape.set_size(j, new_shape[j].max(b[b.len() - i - 1]));
         }
     }
     new_shape

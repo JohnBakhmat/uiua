@@ -1,7 +1,7 @@
 use std::{
     fmt,
     hash::Hash,
-    ops::{Deref, DerefMut, Index, RangeBounds},
+    ops::{Deref, RangeBounds},
 };
 
 use serde::*;
@@ -101,14 +101,12 @@ impl Shape {
     /// Extend the shape with the given dimensions and markers
     pub fn extend_from_shape<R>(&mut self, shape: &Shape, range: R)
     where
-        [usize]: Index<R, Output = [usize]>,
-        [Marker]: Index<R, Output = [Marker]>,
-        R: Clone,
+        R: RangeBounds<usize>,
     {
-        self.sizes
-            .extend_from_slice(&shape.sizes[..][range.clone()]);
+        let range = (range.start_bound().cloned(), range.end_bound().cloned());
+        self.sizes.extend_from_slice(&shape.sizes[range]);
         if !shape.markers.is_empty() {
-            self.markers.extend_from_slice(&shape.markers[..][range]);
+            self.markers.extend_from_slice(&shape.markers[range]);
         }
     }
     /// Split the shape at the given index
@@ -140,6 +138,56 @@ impl Shape {
                 marker: self.markers.get(i).copied().unwrap_or(EMPTY_MARKER),
             })
     }
+    /// Get the size of the dimension at the given index
+    pub fn size(&self, index: usize) -> usize {
+        self.sizes[index]
+    }
+    /// Set the size of the dimension at the given index
+    pub fn set_size(&mut self, index: usize, size: usize) {
+        self.sizes[index] = size;
+    }
+    /// Get a mutable reference to the size of the dimension at the given index
+    pub fn size_mut(&mut self, index: usize) -> &mut usize {
+        &mut self.sizes[index]
+    }
+    /// Get the rank of the shape
+    pub fn rank(&self) -> usize {
+        self.sizes.len()
+    }
+    /// Set the length of the shape
+    pub fn set_length(&mut self, len: usize) {
+        if self.sizes.is_empty() {
+            self.sizes.push(len);
+        } else {
+            self.set_size(0, len);
+        }
+    }
+    /// Get the length of the array with this shape
+    pub fn length(&self) -> usize {
+        self.sizes.first().copied().unwrap_or(1)
+    }
+    /// Get a mutable reference to the length of the array with this shape
+    pub fn length_mut(&mut self) -> Option<&mut usize> {
+        self.sizes.first_mut()
+    }
+    /// Rotate the shape to the left
+    pub fn rotate_left(&mut self, n: usize) {
+        self.rotate_left_at(.., n);
+    }
+    /// Rotate the shape to the right
+    pub fn rotate_right(&mut self, n: usize) {
+        self.rotate_right_at(.., n);
+    }
+    /// Rotate the shape to the left at the given range
+    pub fn rotate_left_at<R: RangeBounds<usize>>(&mut self, range: R, n: usize) {
+        let range = (range.start_bound().cloned(), range.end_bound().cloned());
+        self.sizes[range].rotate_left(n);
+    }
+    /// Rotate the shape to the right at the given range
+    pub fn rotate_right_at<R: RangeBounds<usize>>(&mut self, range: R, n: usize) {
+        let range = (range.start_bound().cloned(), range.end_bound().cloned());
+        self.sizes[range].rotate_right(n);
+    }
 }
 
 static NO_MARKERS: [Marker; 32] = ['\0'; 32];
@@ -169,6 +217,13 @@ impl fmt::Debug for Shape {
         for (i, dim) in self.sizes.iter().enumerate() {
             if i > 0 {
                 write!(f, " × ")?;
+            }
+            if let Some(marker) = self.markers.get(i) {
+                if marker.is_ascii_digit() {
+                    write!(f, "({marker})")?;
+                } else {
+                    write!(f, "{marker}")?;
+                }
             }
             write!(f, "{}", dim)?;
         }
@@ -207,12 +262,6 @@ impl Deref for Shape {
     type Target = [usize];
     fn deref(&self) -> &Self::Target {
         &self.sizes
-    }
-}
-
-impl DerefMut for Shape {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.sizes
     }
 }
 

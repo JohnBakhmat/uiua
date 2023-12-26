@@ -283,7 +283,7 @@ fn each2(f: Function, xs: Value, ys: Value, env: &mut Uiua) -> UiuaResult {
             let mut eached = Value::from_row_values(new_values, env)?;
             if is_empty {
                 eached.pop_row();
-                if let Some(r) = new_shape.first_mut() {
+                if let Some(r) = new_shape.length_mut() {
                     *r -= 1;
                 }
             }

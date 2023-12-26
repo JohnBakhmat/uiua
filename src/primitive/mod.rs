@@ -721,6 +721,7 @@ impl Primitive {
                 let _after = env.pop_function()?;
                 env.call(f)?;
             }
+            Primitive::Mark => {}
             Primitive::Insert => {
                 let key = env.pop("key")?;
                 let val = env.pop("value")?;

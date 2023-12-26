@@ -322,7 +322,7 @@ impl<T: ArrayValue> Array<T> {
             return self.clone();
         }
         let mut shape = self.shape.clone();
-        shape[0] = 0;
+        shape.set_length(0);
         Array::new(shape, CowSlice::new())
     }
     /// Get a pretty-printed string representing the array
@@ -336,7 +336,7 @@ impl<T: ArrayValue> Array<T> {
             return None;
         }
         let data = self.data.split_off(self.data.len() - self.row_len());
-        self.shape[0] -= 1;
+        self.shape.set_length(self.shape.length() - 1);
         let shape: Shape = self.shape[1..].into();
         self.validate_shape();
         Some(Self::new(shape, data))

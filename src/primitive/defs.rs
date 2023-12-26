@@ -1787,6 +1787,8 @@ primitive!(
     /// ex: ↧5 ∞
     /// ex: ↥5 ∞
     (0, Infinity, Constant, ("infinity", '∞')),
+    /// Mark the axes of an array
+    (2, Mark, DyadicArray, "mark"),
     /// Create a hashmap from lists of keys and values
     ///
     /// ex: # Experimental!

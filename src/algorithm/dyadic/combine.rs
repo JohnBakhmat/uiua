@@ -245,7 +245,7 @@ impl<T: ArrayValue> Array<T> {
                 };
                 self.data.extend(other.data);
                 self.shape = target_shape;
-                self.shape[0] += 1;
+                *self.shape.length_mut().unwrap() += 1;
                 self
             }
             Ordering::Greater => {
@@ -281,7 +281,7 @@ impl<T: ArrayValue> Array<T> {
                         _ => (),
                     }
                     self.data.extend(other.data);
-                    self.shape[0] += other.shape[0];
+                    *self.shape.length_mut().unwrap() += other.shape.length();
                     self
                 }
             }
@@ -322,7 +322,7 @@ impl<T: ArrayValue> Array<T> {
         };
         self.data.extend(other.data);
         self.shape = target_shape;
-        self.shape[0] += 1;
+        *self.shape.length_mut().unwrap() += 1;
         self.validate_shape();
         Ok(())
     }
