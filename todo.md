@@ -14,6 +14,7 @@ Within each section, items are ordered (roughly) by decreasing priority.
   - UDP Sockets
 
 ## Bugs
+- Fix `&ast`
 - Figure out what is going on with the editor cursor
 
 ## Optimizations

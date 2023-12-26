@@ -156,6 +156,8 @@ impl<T: GridFmt + ArrayValue> GridFmt for Array<T> {
         if self.shape.is_empty() {
             return self.data[0].fmt_grid(boxed);
         }
+        let numbery =
+            type_name::<T>() == type_name::<f64>() || type_name::<T>() == type_name::<u8>();
         let stringy = type_name::<T>() == type_name::<char>();
         let boxy = type_name::<T>() == type_name::<Boxed>();
         let complexy = type_name::<T>() == type_name::<Complex>();
@@ -176,6 +178,28 @@ impl<T: GridFmt + ArrayValue> GridFmt for Array<T> {
                     vec![vec![left, right]]
                 }
             };
+        }
+        let markers = &self.meta().markers;
+        if numbery && self.rank() == 1 && !markers.is_empty() {
+            let mut s = String::new();
+            for (i, &marker) in markers.iter().enumerate() {
+                if i > 0 {
+                    s.push_str(" × ");
+                }
+                if marker.is_ascii_digit() {
+                    s.push('(');
+                    s.push(marker);
+                    s.push(')');
+                } else {
+                    s.push(marker);
+                }
+                let item = self.data[i].grid_string();
+                s.push_str(&item);
+            }
+            let (left, right) = if boxed { ('⟦', '⟧') } else { ('[', ']') };
+            s.insert(0, left);
+            s.push(right);
+            return vec![s.chars().collect()];
         }
 
         // Fill the metagrid

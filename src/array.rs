@@ -11,7 +11,7 @@ use ecow::EcoVec;
 use crate::{
     cowslice::{cowslice, CowSlice},
     grid_fmt::GridFmt,
-    Boxed, Complex, Shape, Uiua, Value,
+    Boxed, Complex, Marker, Shape, Uiua, Value,
 };
 
 /// Uiua's array type
@@ -30,6 +30,8 @@ pub struct ArrayMeta {
     pub flags: ArrayFlags,
     /// The length of a map array
     pub map_len: Option<usize>,
+    /// Markers for the array as a shape
+    pub markers: Vec<Marker>,
 }
 
 bitflags! {
@@ -58,6 +60,7 @@ impl ArrayFlags {
 pub static DEFAULT_META: ArrayMeta = ArrayMeta {
     flags: ArrayFlags::NONE,
     map_len: None,
+    markers: Vec::new(),
 };
 
 impl<T: ArrayValue> Default for Array<T> {
@@ -195,6 +198,7 @@ impl<T> Array<T> {
             let meta = Arc::make_mut(meta);
             meta.flags &= other.flags;
             meta.map_len = None;
+            meta.markers = Vec::new();
         }
     }
 }

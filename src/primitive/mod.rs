@@ -8,6 +8,7 @@ pub use defs::*;
 use std::{
     borrow::{BorrowMut, Cow},
     cell::RefCell,
+    char,
     f64::{
         consts::{PI, TAU},
         INFINITY,
@@ -494,18 +495,21 @@ impl Primitive {
                     Array::row_count,
                 )
             })?,
-            Primitive::Shape => env.monadic_ref(|v| {
-                v.generic_ref_deep(
+            Primitive::Shape => {
+                let val = env.pop(1)?;
+                let shape = val.generic_ref_deep(
                     Array::shape,
                     Array::shape,
                     Array::shape,
                     Array::shape,
                     Array::shape,
-                )
-                .iter()
-                .copied()
-                .collect::<Value>()
-            })?,
+                );
+                let mut shape_arr: Value = shape.iter().copied().collect();
+                if let Some(markers) = shape.markers() {
+                    shape_arr.meta_mut().markers = markers.to_vec();
+                }
+                env.push(shape_arr);
+            }
             Primitive::Bits => env.monadic_ref_env(Value::bits)?,
             Primitive::Reduce => reduce::reduce(env)?,
             Primitive::Scan => reduce::scan(env)?,
@@ -721,7 +725,52 @@ impl Primitive {
                 let _after = env.pop_function()?;
                 env.call(f)?;
             }
-            Primitive::Mark => {}
+            Primitive::Mark => {
+                let markers = env.pop("markers")?;
+                let mut array = env.pop("array")?;
+                if markers.rank() > 1 {
+                    return Err(env.error(format!(
+                        "Markers must be a list, but it has rank {}",
+                        markers.rank()
+                    )));
+                }
+                let markers: Vec<char> = match markers {
+                    Value::Num(nums) => {
+                        if let Some(n) = nums
+                            .data
+                            .iter()
+                            .find(|&&n| n.fract() != 0.0 || !(0.0..=9.0).contains(&n))
+                        {
+                            return Err(env.error(format!(
+                                "Markers must be non-negative integers between 0 and 9, but {n} is not"
+                            )));
+                        }
+                        (nums.data.iter())
+                            .map(|&n| (b'0' + n as u8) as char)
+                            .collect()
+                    }
+                    #[cfg(feature = "bytes")]
+                    Value::Byte(bytes) => (bytes.data.iter())
+                        .map(|&b| (b'0' + b) as char)
+                        .collect::<Vec<_>>(),
+                    Value::Char(chars) => chars.data.into_iter().collect(),
+                    val => {
+                        return Err(env.error(format!(
+                            "Markers must be a list of characters or digits, but it is {}",
+                            val.type_name_plural()
+                        )));
+                    }
+                };
+                if markers.len() != array.rank() {
+                    return Err(env.error(format!(
+                        "Markers array has {} item(s), but the array has rank {}",
+                        markers.len(),
+                        array.rank()
+                    )));
+                }
+                array.shape_mut().set_markers(markers);
+                env.push(array);
+            }
             Primitive::Insert => {
                 let key = env.pop("key")?;
                 let val = env.pop("value")?;

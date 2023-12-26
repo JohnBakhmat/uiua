@@ -121,11 +121,11 @@ impl Shape {
         &self.sizes
     }
     /// Get a reference to the dimension markers
-    pub fn markers(&self) -> &[Marker] {
+    pub fn markers(&self) -> Option<&[Marker]> {
         if self.markers.is_empty() {
-            &NO_MARKERS[..self.sizes.len()]
+            None
         } else {
-            &self.markers
+            Some(&self.markers)
         }
     }
     /// Get an iterator over the dimensions
@@ -188,9 +188,20 @@ impl Shape {
         let range = (range.start_bound().cloned(), range.end_bound().cloned());
         self.sizes[range].rotate_right(n);
     }
+    /// Set the markers of the shape
+    ///
+    /// # Panics
+    /// Panics if the number of markers is not equal to the number of dimensions
+    pub fn set_markers(&mut self, markers: impl Into<Vec<Marker>>) {
+        let markers = markers.into();
+        assert_eq!(
+            self.sizes.len(),
+            markers.len(),
+            "number of markers must be equal to number of dimensions"
+        );
+        self.markers = markers;
+    }
 }
-
-static NO_MARKERS: [Marker; 32] = ['\0'; 32];
 
 impl From<Vec<Dimension>> for Shape {
     fn from(dims: Vec<Dimension>) -> Self {
@@ -323,6 +334,9 @@ impl FromIterator<Dimension> for Shape {
 impl Extend<usize> for Shape {
     fn extend<I: IntoIterator<Item = usize>>(&mut self, iter: I) {
         self.sizes.extend(iter);
+        if !self.markers.is_empty() {
+            self.markers.resize(self.sizes.len(), EMPTY_MARKER);
+        }
     }
 }
 
