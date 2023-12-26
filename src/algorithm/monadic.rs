@@ -63,7 +63,7 @@ impl Value {
     }
     /// Attempt to parse the value into a number
     pub fn parse_num(&self, env: &Uiua) -> UiuaResult<Self> {
-        Ok(match (self, self.shape().dims()) {
+        Ok(match (self, self.shape().sizes()) {
             (Value::Char(arr), [] | [_]) => {
                 let mut s: String = arr.data.iter().copied().collect();
                 if s.contains('¯') {
@@ -144,7 +144,12 @@ impl<T: ArrayValue> Array<T> {
     }
     pub(crate) fn deshape_depth(&mut self, mut depth: usize) {
         depth = depth.min(self.rank());
-        let deshaped = self.shape.split_off(depth).into_iter().product();
+        let deshaped: usize = self
+            .shape
+            .split_off(depth)
+            .into_iter()
+            .map(|dim| dim.size)
+            .product();
         self.shape.push(deshaped);
     }
 }
@@ -878,7 +883,7 @@ impl Value {
     }
     /// `invert` `where`
     pub fn inverse_where(&self, env: &Uiua) -> UiuaResult<Self> {
-        Ok(match self.shape().dims() {
+        Ok(match self.shape().sizes() {
             [] | [_] => {
                 let indices =
                     self.as_nats(env, "Argument to inverse where must be a list of naturals")?;

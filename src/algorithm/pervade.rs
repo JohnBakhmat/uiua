@@ -230,8 +230,8 @@ where
     // Fill
     fill_array_shapes(a, &mut b, env)?;
     // Pervade
-    let ash = a.shape.dims();
-    let bsh = b.shape.dims();
+    let ash = a.shape.sizes();
+    let bsh = b.shape.sizes();
     // Try to avoid copying when possible
     if ash == bsh {
         if a.data.is_copy_of(&b.data) {

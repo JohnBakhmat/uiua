@@ -215,7 +215,7 @@ struct PairMut<'a> {
 }
 
 fn with_pair<T>(val: &Value, env: &Uiua, f: impl FnOnce(Pair) -> T) -> UiuaResult<T> {
-    match (val, val.shape().dims()) {
+    match (val, val.shape().sizes()) {
         (_, [] | [0, ..] | [1, ..]) => Ok(f(Pair {
             keys: val,
             values: val,
