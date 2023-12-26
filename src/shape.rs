@@ -182,11 +182,17 @@ impl Shape {
     pub fn rotate_left_at<R: RangeBounds<usize>>(&mut self, range: R, n: usize) {
         let range = (range.start_bound().cloned(), range.end_bound().cloned());
         self.sizes[range].rotate_left(n);
+        if !self.markers.is_empty() {
+            self.markers[range].rotate_left(n);
+        }
     }
     /// Rotate the shape to the right at the given range
     pub fn rotate_right_at<R: RangeBounds<usize>>(&mut self, range: R, n: usize) {
         let range = (range.start_bound().cloned(), range.end_bound().cloned());
         self.sizes[range].rotate_right(n);
+        if !self.markers.is_empty() {
+            self.markers[range].rotate_right(n);
+        }
     }
     /// Set the markers of the shape
     ///
