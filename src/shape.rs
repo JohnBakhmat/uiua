@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     fmt,
     hash::Hash,
     ops::{Deref, RangeBounds},
@@ -207,6 +208,40 @@ impl Shape {
         );
         self.markers = markers;
     }
+    pub(crate) fn alignment_rotation(&self, other_markers: &[Marker]) -> Option<DepthRotation> {
+        if self.markers.len() <= 1 || other_markers.is_empty() {
+            return None;
+        }
+        let mut other_markers = Cow::Borrowed(other_markers);
+        while let Some((i, _)) = other_markers
+            .iter()
+            .enumerate()
+            .find(|(i, marker)| other_markers[..*i].contains(marker))
+        {
+            other_markers.to_mut().remove(i);
+        }
+        for (j, other) in other_markers.iter().enumerate() {
+            if j > 0 && other_markers[j - 1] == *other {
+                continue;
+            }
+            if let Some(i) = self.markers.iter().position(|marker| marker == other) {
+                if i == j {
+                    continue;
+                }
+                return Some(DepthRotation {
+                    depth: j,
+                    amount: (i as i32) - (j as i32),
+                });
+            }
+        }
+        None
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct DepthRotation {
+    pub depth: usize,
+    pub amount: i32,
 }
 
 impl From<Vec<Dimension>> for Shape {

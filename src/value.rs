@@ -15,7 +15,7 @@ use crate::{
     array::*,
     cowslice::CowSlice,
     grid_fmt::GridFmt,
-    Boxed, Complex, Shape, Uiua, UiuaResult,
+    Boxed, Complex, Marker, Shape, Uiua, UiuaResult,
 };
 
 /// A generic array value
@@ -891,6 +891,41 @@ impl Value {
             "{requirement}, but its type is {}",
             self.type_name()
         )))
+    }
+    pub(crate) fn as_markers(
+        &self,
+        env: &Uiua,
+        mut requirement: &'static str,
+    ) -> UiuaResult<Vec<Marker>> {
+        if requirement.is_empty() {
+            requirement = "Markers must be a list of characters or digits";
+        }
+        if self.rank() > 1 {
+            return Err(env.error(format!("{requirement}, but it has rank {}", self.rank())));
+        }
+        match self {
+            Value::Num(nums) => {
+                if let Some(n) = nums
+                    .data
+                    .iter()
+                    .find(|&&n| n.fract() != 0.0 || !(0.0..=9.0).contains(&n))
+                {
+                    return Err(env.error(format!("{requirement}, but {n} is not")));
+                }
+                Ok((nums.data.iter())
+                    .map(|&n| (b'0' + n as u8) as char)
+                    .collect())
+            }
+            #[cfg(feature = "bytes")]
+            Value::Byte(bytes) => Ok((bytes.data.iter())
+                .map(|&b| (b'0' + b) as char)
+                .collect::<Vec<_>>()),
+            Value::Char(chars) => Ok(chars.data.iter().copied().collect()),
+            val => Err(env.error(format!(
+                "{requirement} of characters or digits, but it is {}",
+                val.type_name_plural()
+            ))),
+        }
     }
     /// Attempt to convert the array to a list of bytes
     ///

@@ -728,39 +728,7 @@ impl Primitive {
             Primitive::Mark => {
                 let markers = env.pop("markers")?;
                 let mut array = env.pop("array")?;
-                if markers.rank() > 1 {
-                    return Err(env.error(format!(
-                        "Markers must be a list, but it has rank {}",
-                        markers.rank()
-                    )));
-                }
-                let markers: Vec<char> = match markers {
-                    Value::Num(nums) => {
-                        if let Some(n) = nums
-                            .data
-                            .iter()
-                            .find(|&&n| n.fract() != 0.0 || !(0.0..=9.0).contains(&n))
-                        {
-                            return Err(env.error(format!(
-                                "Markers must be non-negative integers between 0 and 9, but {n} is not"
-                            )));
-                        }
-                        (nums.data.iter())
-                            .map(|&n| (b'0' + n as u8) as char)
-                            .collect()
-                    }
-                    #[cfg(feature = "bytes")]
-                    Value::Byte(bytes) => (bytes.data.iter())
-                        .map(|&b| (b'0' + b) as char)
-                        .collect::<Vec<_>>(),
-                    Value::Char(chars) => chars.data.into_iter().collect(),
-                    val => {
-                        return Err(env.error(format!(
-                            "Markers must be a list of characters or digits, but it is {}",
-                            val.type_name_plural()
-                        )));
-                    }
-                };
+                let markers = markers.as_markers(env, "")?;
                 if markers.len() != array.rank() {
                     return Err(env.error(format!(
                         "Markers array has {} item(s), but the array has rank {}",
@@ -770,6 +738,35 @@ impl Primitive {
                 }
                 array.shape_mut().set_markers(markers);
                 env.push(array);
+            }
+            Primitive::Orient => {
+                let mut a = env.pop(1)?;
+                let mut b = env.pop(2)?;
+                if b.shape().markers().is_some() {
+                    if a.shape().markers().is_some() {
+                        while let Some(rot) = a
+                            .shape()
+                            .alignment_rotation(b.shape().markers().unwrap_or_default())
+                        {
+                            println!("rot a {rot:?}");
+                            a.transpose_depth(rot.depth, rot.amount);
+                        }
+                        while let Some(rot) = b
+                            .shape()
+                            .alignment_rotation(a.shape().markers().unwrap_or_default())
+                        {
+                            println!("rot b {rot:?}");
+                            b.transpose_depth(rot.depth, rot.amount);
+                        }
+                    } else if let Ok(markers) = a.as_markers(env, "") {
+                        while let Some(rot) = b.shape().alignment_rotation(&markers) {
+                            println!("rot b {rot:?}");
+                            b.transpose_depth(rot.depth, rot.amount);
+                        }
+                    }
+                }
+                env.push(b);
+                env.push(a);
             }
             Primitive::Insert => {
                 let key = env.pop("key")?;

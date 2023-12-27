@@ -1789,6 +1789,8 @@ primitive!(
     (0, Infinity, Constant, ("infinity", '∞')),
     /// Mark the axes of an array
     (2, Mark, DyadicArray, "mark"),
+    /// Reorder the axes of an array
+    (2, Orient, DyadicArray, "orient"),
     /// Create a hashmap from lists of keys and values
     ///
     /// ex: # Experimental!
