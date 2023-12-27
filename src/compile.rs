@@ -1599,21 +1599,82 @@ code:
                 }
             }
             Alt => {
-                let (mut instrs, sig) = self.compile_operand_words(modified.operands.clone())?;
-                let span = modified.code_operands().next().unwrap().span.clone();
-                match instrs.as_slice() {
-                    [Instr::Prim(prim, _)] => {
-                        return Err(self.fatal_error(
-                            span,
-                            format!("{} does not have an alternate behavior", prim.format()),
-                        ))
+                let operand = modified.code_operands().next().unwrap().clone();
+                // Alts that get inlined
+                if let Word::Modified(modified) = operand.value {
+                    if let Modifier::Primitive(Primitive::Both) = modified.modifier.value {
+                        // Both, but 3
+                        let mut operands = modified.code_operands().cloned();
+                        let (mut instrs, sig) =
+                            self.compile_operand_words(vec![operands.next().unwrap()])?;
+                        let span = self.add_span(modified.modifier.span.clone());
+                        let inner = instrs.clone();
+                        instrs.insert(
+                            0,
+                            Instr::PushTemp {
+                                stack: TempStack::Inline,
+                                count: sig.args * 2,
+                                span,
+                            },
+                        );
+                        for _ in 0..2 {
+                            instrs.push(Instr::PopTemp {
+                                stack: TempStack::Inline,
+                                count: sig.args,
+                                span,
+                            });
+                            instrs.extend(inner.iter().cloned());
+                        }
+                        let sig = Signature::new(sig.args * 3, sig.outputs * 3);
+                        if call {
+                            self.push_instr(Instr::PushSig(sig));
+                            self.push_all_instrs(instrs);
+                            self.push_instr(Instr::PopSig);
+                        } else {
+                            let func = self.add_function(
+                                FunctionId::Anonymous(modified.modifier.span.clone()),
+                                sig,
+                                instrs,
+                            );
+                            self.push_instr(Instr::PushFunc(func));
+                        }
+                        return Ok(true);
                     }
-                    [Instr::PushFunc(_), Instr::Prim(Primitive::Reduce, span)] => {
-                        instrs.make_mut()[1] = Instr::ImplPrim(ImplPrimitive::AltReduce, *span);
+                }
+                // Normal alts
+                let (mut instrs, sig) = self.compile_operand_words(modified.operands.clone())?;
+                thread_local! {
+                    static ALTS: HashMap<Primitive, ImplPrimitive> = {
+                        let mut map = HashMap::new();
+                        map.insert(Primitive::Sin, ImplPrimitive::Cos);
+                        map.insert(Primitive::Reduce, ImplPrimitive::AltReduce);
+                        map
+                    };
+                }
+                match instrs.as_slice() {
+                    [Instr::Prim(prim, span)] => {
+                        if let Some(impl_prim) = ALTS.with(|alts| alts.get(prim).copied()) {
+                            instrs.make_mut()[0] = Instr::ImplPrim(impl_prim, *span);
+                        } else {
+                            return Err(self.fatal_error(
+                                operand.span.clone(),
+                                format!("{} does not have an alternate behavior", prim.format()),
+                            ));
+                        }
+                    }
+                    [Instr::PushFunc(_), Instr::Prim(prim, span)] => {
+                        if let Some(impl_prim) = ALTS.with(|alts| alts.get(prim).copied()) {
+                            instrs.make_mut()[1] = Instr::ImplPrim(impl_prim, *span);
+                        } else {
+                            return Err(self.fatal_error(
+                                operand.span.clone(),
+                                format!("{} does not have an alternate behavior", prim.format()),
+                            ));
+                        }
                     }
                     _ => {
                         return Err(self.fatal_error(
-                            span,
+                            operand.span.clone(),
                             "This function does not have an alternate behavior",
                         ))
                     }

@@ -1274,6 +1274,8 @@ primitive!(
     /// ex: [∩∩∩± 1 ¯2 0 42 ¯5 6 7 8 99]
     (2[1], Both, Planet, ("both", '∩')),
     /// Use a function's alternate behavior
+    ///
+    /// While [un] does the inverse of a function, [alt] does some variation of the function's behavior. Not an opposite, but an [alt]ernative.
     ([1], Alt, OtherModifier, ("alt", '⟜')),
     /// Invert the behavior of a function
     ///
