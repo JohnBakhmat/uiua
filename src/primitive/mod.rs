@@ -165,6 +165,7 @@ impl fmt::Display for ImplPrimitive {
             FirstWhere => write!(f, "{First}{Where}"),
             SortUp => write!(f, "{Select}{Rise}{Dup}"),
             SortDown => write!(f, "{Select}{Fall}{Dup}"),
+            AltReduce => write!(f, "{Alt}{Reduce}"),
             &TransposeN(n) => {
                 if n < 0 {
                     write!(f, "{Un}(")?;
@@ -507,7 +508,7 @@ impl Primitive {
                 .collect::<Value>()
             })?,
             Primitive::Bits => env.monadic_ref_env(Value::bits)?,
-            Primitive::Reduce => reduce::reduce(env)?,
+            Primitive::Reduce => reduce::reduce(false, env)?,
             Primitive::Scan => reduce::scan(env)?,
             Primitive::Fold => reduce::fold(env)?,
             Primitive::Each => zip::each(env)?,
@@ -562,6 +563,9 @@ impl Primitive {
             }
             Primitive::Under => {
                 return Err(env.error("Under was not inlined. This is a bug in the interpreter"))
+            }
+            Primitive::Alt => {
+                return Err(env.error("Alt was not inlined. This is a bug in the interpreter"))
             }
             Primitive::Unpack => {
                 let f = env.pop_function()?;
@@ -949,6 +953,8 @@ impl ImplPrimitive {
             ImplPrimitive::InvTrace => trace(env, true)?,
             ImplPrimitive::InvStack => stack(env, true)?,
             ImplPrimitive::InvDump => dump(env, true)?,
+            // Alts
+            ImplPrimitive::AltReduce => reduce::reduce(true, env)?,
             // Optimizations
             ImplPrimitive::Cos => env.monadic_env(Value::cos)?,
             ImplPrimitive::Last => env.monadic_env(Value::last)?,

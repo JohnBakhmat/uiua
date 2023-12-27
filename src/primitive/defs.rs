@@ -1273,6 +1273,8 @@ primitive!(
     /// ex: [∩∩(□+2) 1 @a 2_3 5]
     /// ex: [∩∩∩± 1 ¯2 0 42 ¯5 6 7 8 99]
     (2[1], Both, Planet, ("both", '∩')),
+    /// Use a function's alternate behavior
+    ([1], Alt, OtherModifier, ("alt", '⟜')),
     /// Invert the behavior of a function
     ///
     /// Most functions are not invertible.
@@ -2036,6 +2038,8 @@ impl_primitive!(
     (2, Unreshape),
     (3[1], Unpartition),
     (3[1], Ungroup),
+    // Alts
+    (1[1], AltReduce),
     // Optimizations
     (1, Cos),
     (1, Last),

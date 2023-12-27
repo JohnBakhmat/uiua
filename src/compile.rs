@@ -1598,6 +1598,37 @@ code:
                     self.push_instr(Instr::PushFunc(func));
                 }
             }
+            Alt => {
+                let (mut instrs, sig) = self.compile_operand_words(modified.operands.clone())?;
+                let span = modified.code_operands().next().unwrap().span.clone();
+                match instrs.as_slice() {
+                    [Instr::Prim(prim, _)] => {
+                        return Err(self.fatal_error(
+                            span,
+                            format!("{} does not have an alternate behavior", prim.format()),
+                        ))
+                    }
+                    [Instr::PushFunc(_), Instr::Prim(Primitive::Reduce, span)] => {
+                        instrs.make_mut()[1] = Instr::ImplPrim(ImplPrimitive::AltReduce, *span);
+                    }
+                    _ => {
+                        return Err(self.fatal_error(
+                            span,
+                            "This function does not have an alternate behavior",
+                        ))
+                    }
+                }
+                if call {
+                    self.push_all_instrs(instrs);
+                } else {
+                    let func = self.add_function(
+                        FunctionId::Anonymous(modified.modifier.span.clone()),
+                        sig,
+                        instrs,
+                    );
+                    self.push_instr(Instr::PushFunc(func));
+                }
+            }
             Un => {
                 let mut operands = modified.code_operands().cloned();
                 let f = operands.next().unwrap();

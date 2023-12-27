@@ -8,10 +8,14 @@ use crate::{
     Array, ArrayValue, Function, ImplPrimitive, Primitive, Shape, Uiua, UiuaResult, Value,
 };
 
-pub fn reduce(env: &mut Uiua) -> UiuaResult {
+pub fn reduce(unbox: bool, env: &mut Uiua) -> UiuaResult {
     crate::profile_function!();
     let f = env.pop_function()?;
     let xs = env.pop(1)?;
+
+    if unbox {
+        return generic_reduce(f, xs, true, env);
+    }
 
     match (f.as_flipped_primitive(env), xs) {
         (Some((Primitive::Join, false)), mut xs) if !env.unpack_boxes() => {
@@ -28,13 +32,13 @@ pub fn reduce(env: &mut Uiua) -> UiuaResult {
         }
         (Some((prim, flipped)), Value::Num(nums)) => {
             if let Err(nums) = reduce_nums(prim, flipped, nums, env) {
-                return generic_reduce(f, Value::Num(nums), env);
+                return generic_reduce(f, Value::Num(nums), false, env);
             }
         }
 
         (Some((prim, flipped)), Value::Complex(nums)) => {
             if let Err(nums) = reduce_coms(prim, flipped, nums, env) {
-                return generic_reduce(f, Value::Complex(nums), env);
+                return generic_reduce(f, Value::Complex(nums), false, env);
             }
         }
         #[cfg(feature = "bytes")]
@@ -51,9 +55,9 @@ pub fn reduce(env: &mut Uiua) -> UiuaResult {
             Primitive::Atan => fast_reduce(bytes.convert(), 0.0, atan2::num_num),
             Primitive::Max => fast_reduce(bytes.convert(), f64::NEG_INFINITY, max::num_num),
             Primitive::Min => fast_reduce(bytes.convert(), f64::INFINITY, min::num_num),
-            _ => return generic_reduce(f, Value::Byte(bytes), env),
+            _ => return generic_reduce(f, Value::Byte(bytes), false, env),
         }),
-        (_, xs) => generic_reduce(f, xs, env)?,
+        (_, xs) => generic_reduce(f, xs, false, env)?,
     }
     Ok(())
 }
@@ -139,11 +143,14 @@ where
     }
 }
 
-fn generic_reduce(f: Function, xs: Value, env: &mut Uiua) -> UiuaResult {
+fn generic_reduce(f: Function, xs: Value, unbox: bool, env: &mut Uiua) -> UiuaResult {
     let sig = f.signature();
     match (sig.args, sig.outputs) {
         (0 | 1, 1) => {
-            for row in xs.into_rows() {
+            for mut row in xs.into_rows() {
+                if unbox {
+                    row.unpack();
+                }
                 env.push(row);
                 env.call(f.clone())?;
             }
@@ -153,10 +160,13 @@ fn generic_reduce(f: Function, xs: Value, env: &mut Uiua) -> UiuaResult {
             let mut acc = rows.next().ok_or_else(|| {
                 env.error(format!("Cannot {} empty array", Primitive::Reduce.format()))
             })?;
-            if env.unpack_boxes() {
+            if unbox || env.unpack_boxes() {
                 acc.unpack();
             }
-            for row in rows {
+            for mut row in rows {
+                if unbox {
+                    row.unpack();
+                }
                 env.push(row);
                 env.push(acc);
                 env.call(f.clone())?;
