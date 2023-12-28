@@ -269,14 +269,14 @@ primitive!(
     /// Get the sine of a number
     ///
     /// ex: ○ 1
-    /// You can get a cosine function by [add]ing [eta].
-    /// ex: ○+η 1
+    /// You can get a cosine function with [alt].
+    /// ex: ⟜○ 1
     /// You can get an arcsine function with [un].
     /// ex: °○ 1
     /// You can get an arccosine function by [un]ing the cosine.
-    /// ex: °(○+η) 1
+    /// ex: °⟜○ 1
     /// You can get a tangent function by [divide]ing the [sine] by the cosine.
-    /// ex: ÷○+η:○. 0
+    /// ex: ÷⊃⟜○○ 0
     (1, Sin, MonadicPervasive, ("sine", '○')),
     /// Round to the nearest integer towards `¯∞`
     ///
@@ -1276,6 +1276,10 @@ primitive!(
     /// Use a function's alternate behavior
     ///
     /// While [un] does the inverse of a function, [alt] does some variation of the function's behavior. Not an opposite, but an [alt]ernative.
+    ///
+    /// Using [alt] with [reduce], [scan], [each], [rows], [table], or [cross] will implicitely [un][box] the rows passed to the function.
+    /// ex:  /⊂ {"a" "bc" "def"}
+    /// ex: ⟜/⊂ {"a" "bc" "def"}
     ([1], Alt, OtherModifier, ("alt", '⟜')),
     /// Invert the behavior of a function
     ///
