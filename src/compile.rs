@@ -750,8 +750,17 @@ code:
         }
     }
     fn word(&mut self, word: Sp<Word>, call: bool) -> UiuaResult {
+        self.word_impl(word, call, false)
+    }
+    fn word_impl(&mut self, word: Sp<Word>, call: bool, alt: bool) -> UiuaResult {
+        let mut dissalow_alt = || {
+            if alt {
+                self.add_error(word.span.clone(), "This function has no alternate behavior");
+            }
+        };
         match word.value {
             Word::Number(_, n) => {
+                dissalow_alt();
                 if call {
                     self.push_instr(Instr::push(n));
                 } else {
@@ -764,6 +773,7 @@ code:
                 }
             }
             Word::Char(c) => {
+                dissalow_alt();
                 let val: Value = if c.chars().count() == 1 {
                     c.chars().next().unwrap().into()
                 } else {
@@ -781,6 +791,7 @@ code:
                 }
             }
             Word::String(s) => {
+                dissalow_alt();
                 if call {
                     self.push_instr(Instr::push(s));
                 } else {
@@ -793,6 +804,7 @@ code:
                 }
             }
             Word::FormatString(frags) => {
+                dissalow_alt();
                 let signature = Signature::new(frags.len() - 1, 1);
                 let parts = frags.into_iter().map(Into::into).collect();
                 let span = self.add_span(word.span.clone());
@@ -806,6 +818,7 @@ code:
                 }
             }
             Word::MultilineString(lines) => {
+                dissalow_alt();
                 let signature = Signature::new(
                     lines.iter().map(|l| l.value.len().saturating_sub(1)).sum(),
                     1,
@@ -834,8 +847,12 @@ code:
                     self.push_instr(Instr::PushFunc(f));
                 }
             }
-            Word::Ident(ident) => self.ident(ident, word.span, call)?,
+            Word::Ident(ident) => {
+                dissalow_alt();
+                self.ident(ident, word.span, call)?
+            }
             Word::Strand(items) => {
+                dissalow_alt();
                 if !call {
                     self.new_functions.push(EcoVec::new());
                 }
@@ -904,6 +921,7 @@ code:
                 }
             }
             Word::Array(arr) => {
+                dissalow_alt();
                 if !call {
                     self.new_functions.push(EcoVec::new());
                 }
@@ -972,10 +990,14 @@ code:
                 }
             }
             Word::Func(func) => self.func(func, word.span)?,
-            Word::Switch(sw) => self.switch(sw, word.span, call)?,
-            Word::Primitive(p) => self.primitive(p, word.span, call),
-            Word::Modified(m) => self.modified(*m, call)?,
+            Word::Switch(sw) => {
+                dissalow_alt();
+                self.switch(sw, word.span, call)?
+            }
+            Word::Primitive(p) => self.primitive(p, word.span, call, alt),
+            Word::Modified(m) => self.modified(*m, call, alt)?,
             Word::Placeholder(sig) => {
+                dissalow_alt();
                 let span = self.add_span(word.span);
                 self.push_instr(Instr::GetTempFunction {
                     offset: 0,
@@ -1169,7 +1191,7 @@ code:
         }
         Ok(())
     }
-    fn modified(&mut self, modified: Modified, call: bool) -> UiuaResult {
+    fn modified(&mut self, modified: Modified, call: bool, alt: bool) -> UiuaResult {
         let op_count = modified.code_operands().count();
         if let Modifier::Primitive(prim) = modified.modifier.value {
             // Give advice about redundancy
@@ -1243,7 +1265,7 @@ code:
                                 }))],
                             };
                         }
-                        return self.modified(new, call);
+                        return self.modified(new, call, alt);
                     }
                     Modifier::Primitive(Primitive::Fork | Primitive::Bracket) => {
                         let mut branches = sw.branches.into_iter().rev();
@@ -1268,7 +1290,7 @@ code:
                                 ],
                             };
                         }
-                        return self.modified(new, call);
+                        return self.modified(new, call, alt);
                     }
                     Modifier::Primitive(Primitive::Cascade) => {
                         let mut branches = sw.branches.into_iter().rev();
@@ -1293,7 +1315,7 @@ code:
                                 ],
                             };
                         }
-                        return self.modified(new, call);
+                        return self.modified(new, call, alt);
                     }
                     modifier if modifier.args() >= 2 => {
                         if sw.branches.len() != modifier.args() {
@@ -1312,7 +1334,7 @@ code:
                             modifier: modified.modifier.clone(),
                             operands: sw.branches.into_iter().map(|w| w.map(Word::Func)).collect(),
                         };
-                        return self.modified(new, call);
+                        return self.modified(new, call, alt);
                     }
                     _ => {}
                 }
@@ -1321,7 +1343,7 @@ code:
 
         if op_count == modified.modifier.value.args() {
             // Inlining
-            if self.inline_modifier(&modified, call)? {
+            if self.inline_modifier(&modified, call, alt)? {
                 return Ok(());
             }
         } else {
@@ -1366,7 +1388,9 @@ code:
         if call {
             self.push_all_instrs(instrs);
             match modified.modifier.value {
-                Modifier::Primitive(prim) => self.primitive(prim, modified.modifier.span, true),
+                Modifier::Primitive(prim) => {
+                    self.primitive(prim, modified.modifier.span, true, alt)
+                }
                 Modifier::Ident(ident) => self.ident(ident, modified.modifier.span, true)?,
             }
         } else {
@@ -1374,7 +1398,7 @@ code:
             self.push_all_instrs(instrs);
             match modified.modifier.value {
                 Modifier::Primitive(prim) => {
-                    self.primitive(prim, modified.modifier.span.clone(), true)
+                    self.primitive(prim, modified.modifier.span.clone(), true, alt)
                 }
                 Modifier::Ident(ident) => {
                     self.ident(ident, modified.modifier.span.clone(), true)?
@@ -1400,7 +1424,7 @@ code:
         }
         Ok(())
     }
-    fn inline_modifier(&mut self, modified: &Modified, call: bool) -> UiuaResult<bool> {
+    fn inline_modifier(&mut self, modified: &Modified, call: bool, alt: bool) -> UiuaResult<bool> {
         use Primitive::*;
         let Modifier::Primitive(prim) = modified.modifier.value else {
             return Ok(false);
@@ -1600,95 +1624,7 @@ code:
             }
             Alt => {
                 let operand = modified.code_operands().next().unwrap().clone();
-                // Alts that get inlined
-                if let Word::Modified(modified) = operand.value {
-                    if let Modifier::Primitive(Primitive::Both) = modified.modifier.value {
-                        // Both, but 3
-                        let mut operands = modified.code_operands().cloned();
-                        let (mut instrs, sig) =
-                            self.compile_operand_words(vec![operands.next().unwrap()])?;
-                        let span = self.add_span(modified.modifier.span.clone());
-                        let inner = instrs.clone();
-                        instrs.insert(
-                            0,
-                            Instr::PushTemp {
-                                stack: TempStack::Inline,
-                                count: sig.args * 2,
-                                span,
-                            },
-                        );
-                        for _ in 0..2 {
-                            instrs.push(Instr::PopTemp {
-                                stack: TempStack::Inline,
-                                count: sig.args,
-                                span,
-                            });
-                            instrs.extend(inner.iter().cloned());
-                        }
-                        let sig = Signature::new(sig.args * 3, sig.outputs * 3);
-                        if call {
-                            self.push_instr(Instr::PushSig(sig));
-                            self.push_all_instrs(instrs);
-                            self.push_instr(Instr::PopSig);
-                        } else {
-                            let func = self.add_function(
-                                FunctionId::Anonymous(modified.modifier.span.clone()),
-                                sig,
-                                instrs,
-                            );
-                            self.push_instr(Instr::PushFunc(func));
-                        }
-                        return Ok(true);
-                    }
-                }
-                // Normal alts
-                let (mut instrs, sig) = self.compile_operand_words(modified.operands.clone())?;
-                thread_local! {
-                    static ALTS: HashMap<Primitive, ImplPrimitive> = {
-                        let mut map = HashMap::new();
-                        map.insert(Primitive::Sin, ImplPrimitive::Cos);
-                        map.insert(Primitive::Reduce, ImplPrimitive::AltReduce);
-                        map
-                    };
-                }
-                match instrs.as_slice() {
-                    [Instr::Prim(prim, span)] => {
-                        if let Some(impl_prim) = ALTS.with(|alts| alts.get(prim).copied()) {
-                            instrs.make_mut()[0] = Instr::ImplPrim(impl_prim, *span);
-                        } else {
-                            return Err(self.fatal_error(
-                                operand.span.clone(),
-                                format!("{} does not have an alternate behavior", prim.format()),
-                            ));
-                        }
-                    }
-                    [Instr::PushFunc(_), Instr::Prim(prim, span)] => {
-                        if let Some(impl_prim) = ALTS.with(|alts| alts.get(prim).copied()) {
-                            instrs.make_mut()[1] = Instr::ImplPrim(impl_prim, *span);
-                        } else {
-                            return Err(self.fatal_error(
-                                operand.span.clone(),
-                                format!("{} does not have an alternate behavior", prim.format()),
-                            ));
-                        }
-                    }
-                    _ => {
-                        return Err(self.fatal_error(
-                            operand.span.clone(),
-                            "This function does not have an alternate behavior",
-                        ))
-                    }
-                }
-                if call {
-                    self.push_all_instrs(instrs);
-                } else {
-                    let func = self.add_function(
-                        FunctionId::Anonymous(modified.modifier.span.clone()),
-                        sig,
-                        instrs,
-                    );
-                    self.push_instr(Instr::PushFunc(func));
-                }
+                self.word_impl(operand, true, true)?;
             }
             Un => {
                 let mut operands = modified.code_operands().cloned();
@@ -1777,23 +1713,25 @@ code:
                 let (mut instrs, sig) =
                     self.compile_operand_words(vec![operands.next().unwrap()])?;
                 let span = self.add_span(modified.modifier.span.clone());
+                let count = if alt { 3 } else { 2 };
+                let inner = instrs.clone();
                 instrs.insert(
                     0,
                     Instr::PushTemp {
                         stack: TempStack::Inline,
-                        count: sig.args,
+                        count: (count - 1) * sig.args,
                         span,
                     },
                 );
-                instrs.push(Instr::PopTemp {
-                    stack: TempStack::Inline,
-                    count: sig.args,
-                    span,
-                });
-                for i in 1..instrs.len() - 1 {
-                    instrs.push(instrs[i].clone());
+                for _ in 0..count - 1 {
+                    instrs.push(Instr::PopTemp {
+                        stack: TempStack::Inline,
+                        count: sig.args,
+                        span,
+                    });
+                    instrs.extend(inner.iter().cloned());
                 }
-                let sig = Signature::new(sig.args * 2, sig.outputs * 2);
+                let sig = Signature::new(sig.args * count, sig.outputs * count);
                 if call {
                     self.push_instr(Instr::PushSig(sig));
                     self.push_all_instrs(instrs);
@@ -1882,22 +1820,35 @@ code:
             );
         }
     }
-    fn primitive(&mut self, prim: Primitive, span: CodeSpan, call: bool) {
+    fn primitive(&mut self, prim: Primitive, span: CodeSpan, call: bool, alt: bool) {
         self.handle_primitive_experimental(prim, &span);
         self.handle_primitive_deprecation(prim, &span);
         let span_i = self.add_span(span.clone());
-        if call {
-            self.push_instr(Instr::Prim(prim, span_i));
+        let instr = if alt {
+            match prim {
+                Primitive::Sin => Instr::ImplPrim(ImplPrimitive::Cos, span_i),
+                Primitive::Reduce => Instr::ImplPrim(ImplPrimitive::AltReduce, span_i),
+                prim => {
+                    self.add_error(
+                        span.clone(),
+                        format!("{} has no alternate behavior", prim.format()),
+                    );
+                    Instr::Prim(prim, span_i)
+                }
+            }
         } else {
-            let instrs = [Instr::Prim(prim, span_i)];
+            Instr::Prim(prim, span_i)
+        };
+        if call {
+            self.push_instr(instr);
+        } else {
+            let instrs = [instr];
             match instrs_signature(&instrs) {
                 Ok(sig) => {
                     let func = self.add_function(FunctionId::Primitive(prim), sig, instrs);
                     self.push_instr(Instr::PushFunc(func))
                 }
-                Err(e) => {
-                    self.add_error(span, format!("Cannot infer function signature: {e}"));
-                }
+                Err(e) => self.add_error(span, format!("Cannot infer function signature: {e}")),
             }
         }
     }
