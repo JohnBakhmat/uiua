@@ -750,11 +750,11 @@ code:
         }
     }
     fn word(&mut self, word: Sp<Word>, call: bool) -> UiuaResult {
-        self.word_impl(word, call, false)
+        self.word_impl(word, call, None)
     }
-    fn word_impl(&mut self, word: Sp<Word>, call: bool, alt: bool) -> UiuaResult {
+    fn word_impl(&mut self, word: Sp<Word>, call: bool, alt_span: Option<CodeSpan>) -> UiuaResult {
         let mut dissalow_alt = || {
-            if alt {
+            if alt_span.is_some() {
                 self.add_error(word.span.clone(), "This function has no alternate behavior");
             }
         };
@@ -994,8 +994,8 @@ code:
                 dissalow_alt();
                 self.switch(sw, word.span, call)?
             }
-            Word::Primitive(p) => self.primitive(p, word.span, call, alt),
-            Word::Modified(m) => self.modified(*m, call, alt)?,
+            Word::Primitive(p) => self.primitive(p, word.span, call, alt_span.is_some()),
+            Word::Modified(m) => self.modified(*m, call, alt_span)?,
             Word::Placeholder(sig) => {
                 dissalow_alt();
                 let span = self.add_span(word.span);
@@ -1191,7 +1191,12 @@ code:
         }
         Ok(())
     }
-    fn modified(&mut self, modified: Modified, call: bool, alt: bool) -> UiuaResult {
+    fn modified(
+        &mut self,
+        modified: Modified,
+        call: bool,
+        alt_span: Option<CodeSpan>,
+    ) -> UiuaResult {
         let op_count = modified.code_operands().count();
         if let Modifier::Primitive(prim) = modified.modifier.value {
             // Give advice about redundancy
@@ -1265,7 +1270,7 @@ code:
                                 }))],
                             };
                         }
-                        return self.modified(new, call, alt);
+                        return self.modified(new, call, alt_span);
                     }
                     Modifier::Primitive(Primitive::Fork | Primitive::Bracket) => {
                         let mut branches = sw.branches.into_iter().rev();
@@ -1290,7 +1295,7 @@ code:
                                 ],
                             };
                         }
-                        return self.modified(new, call, alt);
+                        return self.modified(new, call, alt_span);
                     }
                     Modifier::Primitive(Primitive::Cascade) => {
                         let mut branches = sw.branches.into_iter().rev();
@@ -1315,7 +1320,7 @@ code:
                                 ],
                             };
                         }
-                        return self.modified(new, call, alt);
+                        return self.modified(new, call, alt_span);
                     }
                     modifier if modifier.args() >= 2 => {
                         if sw.branches.len() != modifier.args() {
@@ -1334,7 +1339,7 @@ code:
                             modifier: modified.modifier.clone(),
                             operands: sw.branches.into_iter().map(|w| w.map(Word::Func)).collect(),
                         };
-                        return self.modified(new, call, alt);
+                        return self.modified(new, call, alt_span);
                     }
                     _ => {}
                 }
@@ -1343,7 +1348,7 @@ code:
 
         if op_count == modified.modifier.value.args() {
             // Inlining
-            if self.inline_modifier(&modified, call, alt)? {
+            if self.inline_modifier(&modified, call, alt_span.is_some())? {
                 return Ok(());
             }
         } else {
@@ -1365,7 +1370,55 @@ code:
             ));
         }
 
-        let instrs = self.compile_words(modified.operands, false)?;
+        let mut instrs: Option<EcoVec<Instr>> = None;
+
+        // Alternate behaviors
+        if let Some(alt_span) = &alt_span {
+            match modified.modifier.value {
+                Modifier::Primitive(
+                    Primitive::Reduce
+                    | Primitive::Scan
+                    | Primitive::Each
+                    | Primitive::Rows
+                    | Primitive::Table
+                    | Primitive::Cross,
+                ) => {
+                    // Iterator unboxing
+                    let (mut ins, sig) = self.compile_operand_words(modified.operands.clone())?;
+                    if sig.args > 0 {
+                        let span = self.add_span(alt_span.clone());
+                        let after = take(&mut ins);
+                        ins.push(Instr::PushTemp {
+                            stack: TempStack::Inline,
+                            count: sig.args - 1,
+                            span,
+                        });
+                        for _ in 0..sig.args - 1 {
+                            ins.push(Instr::Prim(Primitive::Unbox, span));
+                            ins.push(Instr::PopTemp {
+                                stack: TempStack::Inline,
+                                count: 1,
+                                span,
+                            });
+                        }
+                        ins.push(Instr::Prim(Primitive::Unbox, span));
+                        ins.extend(after);
+                    }
+                    let func = self.add_function(FunctionId::Anonymous(alt_span.clone()), sig, ins);
+                    instrs = Some(eco_vec![Instr::PushFunc(func)]);
+                }
+                _ => self.add_error(
+                    modified.modifier.span.clone(),
+                    format!("{} has no alternate behavior", modified.modifier.value),
+                ),
+            }
+        }
+
+        let instrs = if let Some(instrs) = instrs {
+            instrs
+        } else {
+            self.compile_words(modified.operands, false)?
+        };
 
         // Reduce monadic deprectation message
         if let (Modifier::Primitive(Primitive::Reduce), [Instr::PushFunc(f)]) =
@@ -1389,7 +1442,7 @@ code:
             self.push_all_instrs(instrs);
             match modified.modifier.value {
                 Modifier::Primitive(prim) => {
-                    self.primitive(prim, modified.modifier.span, true, alt)
+                    self.primitive(prim, modified.modifier.span, true, false)
                 }
                 Modifier::Ident(ident) => self.ident(ident, modified.modifier.span, true)?,
             }
@@ -1398,7 +1451,7 @@ code:
             self.push_all_instrs(instrs);
             match modified.modifier.value {
                 Modifier::Primitive(prim) => {
-                    self.primitive(prim, modified.modifier.span.clone(), true, alt)
+                    self.primitive(prim, modified.modifier.span.clone(), true, false)
                 }
                 Modifier::Ident(ident) => {
                     self.ident(ident, modified.modifier.span.clone(), true)?
@@ -1429,8 +1482,17 @@ code:
         let Modifier::Primitive(prim) = modified.modifier.value else {
             return Ok(false);
         };
+        let mut dissalow_alt = || {
+            if alt {
+                self.add_error(
+                    modified.modifier.span.clone(),
+                    format!("{} has no alternate behavior", prim.format()),
+                );
+            }
+        };
         match prim {
             Dip | Gap => {
+                dissalow_alt();
                 // Compile operands
                 let (mut instrs, sig) = self.compile_operand_words(modified.operands.clone())?;
                 // Dip (|1 …) . diagnostic
@@ -1486,6 +1548,7 @@ code:
                 }
             }
             Fork => {
+                dissalow_alt();
                 let mut operands = modified.code_operands().cloned();
                 let (a_instrs, a_sig) =
                     self.compile_operand_words(vec![operands.next().unwrap()])?;
@@ -1535,6 +1598,7 @@ code:
                 }
             }
             Cascade => {
+                dissalow_alt();
                 let mut operands = modified.code_operands().cloned();
                 let (a_instrs, a_sig) =
                     self.compile_operand_words(vec![operands.next().unwrap()])?;
@@ -1590,6 +1654,7 @@ code:
                 }
             }
             Bracket => {
+                dissalow_alt();
                 let mut operands = modified.code_operands().cloned();
                 let (a_instrs, a_sig) =
                     self.compile_operand_words(vec![operands.next().unwrap()])?;
@@ -1623,10 +1688,12 @@ code:
                 }
             }
             Alt => {
+                dissalow_alt();
                 let operand = modified.code_operands().next().unwrap().clone();
-                self.word_impl(operand, true, true)?;
+                self.word_impl(operand, true, Some(modified.modifier.span.clone()))?;
             }
             Un => {
+                dissalow_alt();
                 let mut operands = modified.code_operands().cloned();
                 let f = operands.next().unwrap();
                 let span = f.span.clone();
@@ -1650,6 +1717,7 @@ code:
                 }
             }
             Under => {
+                dissalow_alt();
                 let mut operands = modified.code_operands().cloned();
                 let f = operands.next().unwrap();
                 let f_span = f.span.clone();
@@ -1746,6 +1814,7 @@ code:
                 }
             }
             Comptime => {
+                dissalow_alt();
                 let mut operands = modified.code_operands().cloned();
                 let (instrs, sig) = self.compile_operand_words(vec![operands.next().unwrap()])?;
                 if sig.args > 0 {
@@ -1827,7 +1896,6 @@ code:
         let instr = if alt {
             match prim {
                 Primitive::Sin => Instr::ImplPrim(ImplPrimitive::Cos, span_i),
-                Primitive::Reduce => Instr::ImplPrim(ImplPrimitive::AltReduce, span_i),
                 prim => {
                     self.add_error(
                         span.clone(),

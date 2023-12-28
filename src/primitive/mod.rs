@@ -165,7 +165,6 @@ impl fmt::Display for ImplPrimitive {
             FirstWhere => write!(f, "{First}{Where}"),
             SortUp => write!(f, "{Select}{Rise}{Dup}"),
             SortDown => write!(f, "{Select}{Fall}{Dup}"),
-            AltReduce => write!(f, "{Alt}{Reduce}"),
             &TransposeN(n) => {
                 if n < 0 {
                     write!(f, "{Un}(")?;
@@ -953,8 +952,6 @@ impl ImplPrimitive {
             ImplPrimitive::InvTrace => trace(env, true)?,
             ImplPrimitive::InvStack => stack(env, true)?,
             ImplPrimitive::InvDump => dump(env, true)?,
-            // Alts
-            ImplPrimitive::AltReduce => reduce::reduce(true, env)?,
             // Optimizations
             ImplPrimitive::Cos => env.monadic_env(Value::cos)?,
             ImplPrimitive::Last => env.monadic_env(Value::last)?,

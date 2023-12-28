@@ -2040,8 +2040,6 @@ impl_primitive!(
     (2, Unreshape),
     (3[1], Unpartition),
     (3[1], Ungroup),
-    // Alts
-    (1[1], AltReduce),
     // Optimizations
     (1, Cos),
     (1, Last),

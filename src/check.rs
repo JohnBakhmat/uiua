@@ -6,7 +6,7 @@ use crate::{
     array::Array,
     function::{Function, FunctionId, Instr, Signature},
     value::Value,
-    FuncSlice, ImplPrimitive, Primitive, TempStack,
+    FuncSlice, Primitive, TempStack,
 };
 
 const START_HEIGHT: usize = 16;
@@ -562,38 +562,20 @@ impl<'a> VirtualEnv<'a> {
                     }
                 }
             },
-            Instr::ImplPrim(prim, _) => match prim {
-                ImplPrimitive::AltReduce => {
-                    let sig = self.pop_func()?.signature();
-                    let outputs = match (sig.args, sig.outputs) {
-                        (0, _) => return Err(format!("{prim}'s function has no args").into()),
-                        (1, 0) => 0,
-                        (1, _) => {
-                            return Err(SigCheckError::from(format!(
-                                "{prim}'s function's signature is {sig}"
-                            ))
-                            .ambiguous())
-                        }
-                        (_, 1) => 1,
-                        _ => return Err(format!("{prim}'s function's signature is {sig}").into()),
-                    };
-                    self.handle_args_outputs(1, outputs)?;
+            Instr::ImplPrim(prim, _) => {
+                let args = prim.args();
+                for _ in 0..prim.modifier_args().unwrap_or(0) {
+                    self.pop_func()?;
                 }
-                prim => {
-                    let args = prim.args();
-                    for _ in 0..prim.modifier_args().unwrap_or(0) {
-                        self.pop_func()?;
-                    }
-                    for _ in 0..args {
-                        self.pop()?;
-                    }
-                    self.set_min_height();
-                    let outputs = prim.outputs();
-                    for _ in 0..outputs {
-                        self.stack.push(BasicValue::Other);
-                    }
+                for _ in 0..args {
+                    self.pop()?;
                 }
-            },
+                self.set_min_height();
+                let outputs = prim.outputs();
+                for _ in 0..outputs {
+                    self.stack.push(BasicValue::Other);
+                }
+            }
             Instr::PushSig(_) | Instr::PopSig => {
                 panic!("PushSig and PopSig should have been handled higher up")
             }
