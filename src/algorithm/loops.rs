@@ -373,9 +373,9 @@ fn collapse_groups(
 pub fn collapse(env: &mut Uiua) -> UiuaResult {
     let f = env.pop_function()?;
     let sig = f.signature();
+    let xs = env.pop(1)?;
     match (sig.args, sig.outputs) {
         (1, outputs) => {
-            let xs = env.pop(1)?;
             let mut rows = multi_output(outputs, Vec::with_capacity(xs.row_count()));
             for row in xs.into_rows() {
                 env.push(row.unpacked());
@@ -392,9 +392,17 @@ pub fn collapse(env: &mut Uiua) -> UiuaResult {
             }
         }
         (2, 1) => {
-            let mut acc = env.pop(1)?;
-            let xs = env.pop(2)?;
-            for row in xs.into_rows() {
+            let mut rows = xs.into_rows();
+            let mut acc = match env.box_fill() {
+                Ok(acc) => acc.0,
+                Err(e) => rows.next().map(Value::unpacked).ok_or_else(|| {
+                    env.error(format!(
+                        "Cannot do reducing {} on an empty array{e}",
+                        Primitive::Collapse.format()
+                    ))
+                })?,
+            };
+            for row in rows {
                 env.push(row.unpacked());
                 env.push(acc);
                 env.call(f.clone())?;

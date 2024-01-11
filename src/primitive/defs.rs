@@ -1084,9 +1084,9 @@ primitive!(
     /// If the function takes one argument, then [collapse]`f` is equivalent to [rows]`(f`[un][box]`)`.
     /// ex: # Experimental!
     ///   : ⌿∘ {"abc" "def" "ghi"}
-    /// If the function takes two arguments, then [collapse] takes an accumulator.
+    /// If the function takes two arguments, then [collapse] works like [reduce].
     /// ex: # Experimental!
-    ///   : ⌿⊂"" {"Hey" "there" "buddy!"}
+    ///   : ⌿⊂ {"Hey" "there" "buddy!"}
     ([1], Collapse, AggregatingModifier, ("collapse", '⌿')),
     /// Apply a function to each element of an array or arrays.
     ///
