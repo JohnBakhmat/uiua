@@ -334,7 +334,7 @@ impl<'a> VirtualEnv<'a> {
                     let sig = self.pop_func()?.signature();
                     self.handle_sig(sig)?;
                 }
-                Group | Partition => {
+                Group | Partition | Collapse => {
                     let sig = self.pop_func()?.signature();
                     self.handle_args_outputs(2, sig.outputs)?;
                 }

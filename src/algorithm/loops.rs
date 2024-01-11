@@ -369,3 +369,45 @@ fn collapse_groups(
     }
     Ok(())
 }
+
+pub fn collapse(env: &mut Uiua) -> UiuaResult {
+    let f = env.pop_function()?;
+    let sig = f.signature();
+    match (sig.args, sig.outputs) {
+        (1, outputs) => {
+            let xs = env.pop(1)?;
+            let mut rows = multi_output(outputs, Vec::with_capacity(xs.row_count()));
+            for row in xs.into_rows() {
+                env.push(row.unpacked());
+                env.call(f.clone())?;
+                for i in 0..outputs {
+                    let value = env.pop("collapse function result")?;
+                    if sig.args == 1 {
+                        rows[i].push(value);
+                    }
+                }
+            }
+            for rows in rows.into_iter().rev() {
+                env.push(Value::from_row_values(rows, env)?);
+            }
+        }
+        (2, 1) => {
+            let mut acc = env.pop(1)?;
+            let xs = env.pop(2)?;
+            for row in xs.into_rows() {
+                env.push(row.unpacked());
+                env.push(acc);
+                env.call(f.clone())?;
+                acc = env.pop("reduced function result")?;
+            }
+            env.push(acc);
+        }
+        _ => {
+            return Err(env.error(format!(
+                "Cannot {} with a function with signature {sig}",
+                Primitive::Collapse.format()
+            )))
+        }
+    }
+    Ok(())
+}

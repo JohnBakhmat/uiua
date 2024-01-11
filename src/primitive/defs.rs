@@ -1078,6 +1078,16 @@ primitive!(
     /// ex: ⊕□\+=@    . "Everyday man's on the block"
     ///   : ⊕□\+↻¯1=@ . "Everyday man's on the block"
     (1[1], Scan, AggregatingModifier, ("scan", '\\')),
+    /// Reduce or iterate while unboxing
+    ///
+    /// The behavior depends on the function's signature (similar to [partition] and [group]).
+    /// If the function takes one argument, then [collapse]`f` is equivalent to [rows]`(f`[un][box]`)`.
+    /// ex: # Experimental!
+    ///   : ⌿∘ {"abc" "def" "ghi"}
+    /// If the function takes two arguments, then [collapse] takes an accumulator.
+    /// ex: # Experimental!
+    ///   : ⌿⊂"" {"Hey" "there" "buddy!"}
+    ([1], Collapse, AggregatingModifier, ("collapse", '⌿')),
     /// Apply a function to each element of an array or arrays.
     ///
     /// This is the element-wise version of [rows].

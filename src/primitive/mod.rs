@@ -297,7 +297,18 @@ impl Primitive {
         use Primitive::*;
         matches!(
             self,
-            Rectify | This | Recur | All | Cascade | Map | Insert | Has | Get | Remove | Bind
+            Rectify
+                | This
+                | Recur
+                | All
+                | Cascade
+                | Map
+                | Insert
+                | Has
+                | Get
+                | Remove
+                | Bind
+                | Collapse
         )
     }
     /// Check if this primitive is deprecated
@@ -496,6 +507,7 @@ impl Primitive {
             Primitive::Reduce => reduce::reduce(env)?,
             Primitive::Scan => reduce::scan(env)?,
             Primitive::Fold => reduce::fold(env)?,
+            Primitive::Collapse => loops::collapse(env)?,
             Primitive::Each => zip::each(env)?,
             Primitive::Rows => zip::rows(env)?,
             Primitive::Table => table::table(env)?,
